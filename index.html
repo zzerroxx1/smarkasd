@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный будильник | Геолокация + Время</title>
+    <meta name="description" content="Умный будильник, который срабатывает по времени или когда вы приближаетесь к выбранным местам">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #4A6FA5;
+            --secondary: #2E5077;
+            --accent: #FF6B6B;
+            --dark: #1A2D42;
+            --light: #F5F7FA;
+            --success: #4ECDC4;
+            --warning: #FFD166;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--dark) 0%, #0F1A2B 100%);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px;
+            background: rgba(26, 45, 66, 0.7);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(74, 111, 165, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--success));
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            letter-spacing: 1px;
+        }
+        
+        .tagline {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            color: rgba(245, 247, 250, 0.8);
+            line-height: 1.6;
+        }
+        
+        .tabs {
+            display: flex;
+            background: rgba(26, 45, 66, 0.7);
+            border-radius: 15px;
+            padding: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            color: var(--light);
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            box-shadow: 0 5px 15px rgba(74, 111, 165, 0.4);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+        }
+        
+        .map-container {
+            flex: 1.5;
+            min-width: 350px;
+            height: 600px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            position: relative;
+            border: 1px solid rgba(74, 111, 165, 0.3);
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 20px;
+        }
+        
+        .map-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 45, 66, 0.8);
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--primary);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        
+        .controls {
+            flex: 1;
+            min-width: 350px;
+            background: rgba(26, 45, 66, 0.7);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(74, 111, 165, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            margin-bottom: 5px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 5px;
+            height: 20px;
+            background: var(--accent);
+            border-radius: 3px;
+        }
+        
+        label {
+            font-weight: bold;
+            font-size: 1rem;
+            color: rgba(245, 247, 250, 0.9);
+        }
+        
+        input, select, textarea, button {
+            padding: 14px 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            background: rgba(245, 247, 250, 0.1);
+            color: var(--light);
+            border: 1px solid rgba(74, 111, 165, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.2);
+        }
+        
+        input::placeholder, textarea::placeholder {
+            color: rgba(245, 247, 250, 0.5);
+        }
+        
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .range-value {
+            min-width: 60px;
+            text-align: center;
+            font-weight: bold;
+            background: var(--primary);
+            padding: 5px 10px;
+            border-radius: 8px;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            position: relative;
+            overflow: hidden;
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        button:hover::before {
+            left: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 7px 20px rgba(74, 111, 165, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background: rgba(245, 247, 250, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        button:disabled::before {
+            display: none;
+        }
+        
+        .status-panel {
+            padding: 20px;
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            margin-top: 10px;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .alarm-active {
+            animation: alarm-pulse 1.5s infinite;
+            border-left-color: var(--accent);
+            background: rgba(255, 107, 107, 0.2);
+        }
+        
+        .distance-info {
+            font-size: 1.4rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(74, 111, 165, 0.3);
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .distance-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(74, 111, 165, 0.1), transparent);
+            transform: translateX(-100%);
+        }
+        
+        .distance-info.active::before {
+            animation: shimmer 3s infinite;
+        }
+        
+        .alarms-list {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .alarm-item {
+            padding: 12px 15px;
+            background: rgba(74, 111, 165, 0.1);
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(74, 111, 165, 0.3);
+        }
+        
+        .alarm-name {
+            font-weight: bold;
+        }
+        
+        .alarm-details {
+            font-size: 0.9rem;
+            color: rgba(245, 247, 250, 0.7);
+        }
+        
+        .active-alarm {
+            background: rgba(78, 205, 196, 0.15);
+            border-color: rgba(78, 205, 196, 0.5);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 25px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            border-top: 1px solid rgba(74, 111, 165, 0.2);
+        }
+        
+        .current-time {
+            font-size: 1.5rem;
+            text-align: center;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes alarm-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(255, 107, 107, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .map-container, .controls {
+                min-width: 100%;
+            }
+            
+            h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>УМНЫЙ БУДИЛЬНИК</h1>
+            <p class="tagline">Будильник, который срабатывает по времени или когда вы приближаетесь к выбранным местам</p>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="location">Геолокационные сигналы</button>
+            <button class="tab" data-tab="time">Временные будильники</button>
+        </div>
+        
+        <div class="content">
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="map-overlay">
+                    <div class="status-dot"></div>
+                    <span>Активных сигналов: <span id="activeAlarmsCount">0</span></span>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <div class="tab-content active" id="location-tab">
+                    <div class="control-group">
+                        <div class="section-title">Создание геолокационного сигнала</div>
+                        
+                        <label for="alarmName">Название сигнала:</label>
+                        <input type="text" id="alarmName" placeholder="Например: Работа, Тренировка, Встреча...">
+                        
+                        <label for="alarmRadius">Радиус срабатывания (метры):</label>
+                        <div class="range-container">
+                            <input type="range" id="alarmRadius" min="50" max="2000" value="300">
+                            <div class="range-value" id="radiusValue">300 м</div>
+                        </div>
+                        
+                        <label for="alarmSound">Тип сигнала:</label>
+                        <select id="alarmSound">
+                            <option value="standard">Стандартный сигнал</option>
+                            <option value="melodic">Мелодичный звон</option>
+                            <option value="vibration">Вибрация</option>
+                            <option value="notification">Уведомление</option>
+                        </select>
+                        
+                        <label for="alarmMessage">Сообщение при срабатывании:</label>
+                        <textarea id="alarmMessage" placeholder="Введите текст напоминания..." rows="2"></textarea>
+                        
+                        <button id="createAlarmBtn">Создать геосигнал</button>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="time-tab">
+                    <div class="control-group">
+                        <div class="section-title">Создание временного будильника</div>
+                        
+                        <label for="timeAlarmName">Название будильника:</label>
+                        <input type="text" id="timeAlarmName" placeholder="Например: Подъем, Обед, Совещание...">
+                        
+                        <label for="alarmTime">Время срабатывания:</label>
+                        <input type="time" id="alarmTime">
+                        
+                        <label for="repeatDays">Повторять:</label>
+                        <select id="repeatDays">
+                            <option value="once">Только один раз</option>
+                            <option value="daily">Каждый день</option>
+                            <option value="weekdays">По будням</option>
+                            <option value="weekends">По выходным</option>
+                        </select>
+                        
+                        <label for="timeAlarmSound">Тип сигнала:</label>
+                        <select id="timeAlarmSound">
+                            <option value="standard">Стандартный сигнал</option>
+                            <option value="melodic">Мелодичный звон</option>
+                            <option value="vibration">Вибрация</option>
+                            <option value="notification">Уведомление</option>
+                        </select>
+                        
+                        <label for="timeAlarmMessage">Сообщение при срабатывании:</label>
+                        <textarea id="timeAlarmMessage" placeholder="Введите текст напоминания..." rows="2"></textarea>
+                        
+                        <button id="createTimeAlarmBtn">Создать временной будильник</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="section-title">Текущее время</div>
+                    <div class="current-time" id="currentTime">--:--:--</div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="section-title">Мои сигналы</div>
+                    <div class="alarms-list" id="alarmsList">
+                        <div class="alarm-item">
+                            <span class="alarm-name">Пока нет сигналов</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="section-title">Навигация</div>
+                    
+                    <label>Текущее местоположение:</label>
+                    <div class="status-panel" id="locationStatus">Определение местоположения...</div>
+                    
+                    <label>Расстояние до ближайшего сигнала:</label>
+                    <div class="distance-info" id="distanceInfo">-</div>
+                    
+                    <label>Статус системы:</label>
+                    <div class="status-panel" id="alarmStatus">Система будильников активна</div>
+                    
+                    <button id="clearAlarmsBtn">Очистить все сигналы</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Умный будильник &copy; 2023 | Сигналы по времени и местоположению</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Инициализация карты
+        const map = L.map('map').setView([55.7558, 37.6173], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Переменные для хранения данных
+        let userMarker = null;
+        let alarms = [];
+        let watchId = null;
+        let closestAlarm = null;
+        let currentTimeInterval = null;
+        
+        // Элементы DOM
+        const locationStatus = document.getElementById('locationStatus');
+        const distanceInfo = document.getElementById('distanceInfo');
+        const alarmStatus = document.getElementById('alarmStatus');
+        const createAlarmBtn = document.getElementById('createAlarmBtn');
+        const createTimeAlarmBtn = document.getElementById('createTimeAlarmBtn');
+        const clearAlarmsBtn = document.getElementById('clearAlarmsBtn');
+        const alarmRadius = document.getElementById('alarmRadius');
+        const radiusValue = document.getElementById('radiusValue');
+        const alarmsList = document.getElementById('alarmsList');
+        const activeAlarmsCount = document.getElementById('activeAlarmsCount');
+        const currentTime = document.getElementById('currentTime');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // Обновление значения радиуса
+        alarmRadius.addEventListener('input', function() {
+            radiusValue.textContent = `${this.value} м`;
+        });
+        
+        // Переключение вкладок
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                
+                // Убираем активный класс у всех вкладок и контента
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Добавляем активный класс к выбранной вкладке и контенту
+                tab.classList.add('active');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Создание геолокационного сигнала при клике на карту
+        map.on('click', function(e) {
+            const alarmName = document.getElementById('alarmName').value || `Сигнал ${alarms.length + 1}`;
+            const alarmMessage = document.getElementById('alarmMessage').value || "Вы достигли целевой точки!";
+            const radius = parseInt(alarmRadius.value);
+            const soundType = document.getElementById('alarmSound').value;
+            
+            createLocationAlarm(e.latlng, alarmName, alarmMessage, radius, soundType);
+        });
+        
+        // Функция создания геолокационного сигнала
+        function createLocationAlarm(latlng, name, message, radius, soundType) {
+            const alarmId = 'alarm_' + Date.now();
+            
+            // Создаем визуальное представление сигнала
+            const alarmCircle = L.circle(latlng, {
+                color: '#4A6FA5',
+                fillColor: '#4A6FA5',
+                fillOpacity: 0.2,
+                radius: radius
+            }).addTo(map);
+            
+            const alarmMarker = L.marker(latlng).addTo(map).bindPopup(`
+                <div style="text-align: center; padding: 10px;">
+                    <h3 style="margin: 0 0 10px 0; color: #4A6FA5;">${name}</h3>
+                    <p style="margin: 0;">${message}</p>
+                    <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #777;">Радиус: ${radius} м</p>
+                </div>
+            `);
+            
+            // Сохраняем сигнал
+            const alarm = {
+                id: alarmId,
+                type: 'location',
+                name: name,
+                message: message,
+                latlng: latlng,
+                radius: radius,
+                soundType: soundType,
+                circle: alarmCircle,
+                marker: alarmMarker,
+                active: true
+            };
+            
+            alarms.push(alarm);
+            updateAlarmsList();
+            
+            // Обновляем статус
+            alarmStatus.textContent = `Геосигнал "${name}" создан!`;
+            setTimeout(() => {
+                alarmStatus.textContent = "Система будильников активна";
+            }, 3000);
+        }
+        
+        // Функция создания временного будильника
+        function createTimeAlarm() {
+            const alarmName = document.getElementById('timeAlarmName').value || `Будильник ${alarms.length + 1}`;
+            const alarmMessage = document.getElementById('timeAlarmMessage').value || "Время пришло!";
+            const alarmTime = document.getElementById('alarmTime').value;
+            const repeatDays = document.getElementById('repeatDays').value;
+            const soundType = document.getElementById('timeAlarmSound').value;
+            
+            if (!alarmTime) {
+                alert("Пожалуйста, установите время для будильника");
+                return;
+            }
+            
+            const alarmId = 'alarm_' + Date.now();
+            
+            // Сохраняем будильник
+            const alarm = {
+                id: alarmId,
+                type: 'time',
+                name: alarmName,
+                message: alarmMessage,
+                time: alarmTime,
+                repeat: repeatDays,
+                soundType: soundType,
+                active: true
+            };
+            
+            alarms.push(alarm);
+            updateAlarmsList();
+            
+            // Обновляем статус
+            alarmStatus.textContent = `Будильник "${alarmName}" на ${alarmTime} создан!`;
+            setTimeout(() => {
+                alarmStatus.textContent = "Система будильников активна";
+            }, 3000);
+        }
+        
+        // Обработчик для кнопки создания временного будильника
+        createTimeAlarmBtn.addEventListener('click', createTimeAlarm);
+        
+        // Обновление списка сигналов
+        function updateAlarmsList() {
+            alarmsList.innerHTML = '';
+            activeAlarmsCount.textContent = alarms.length;
+            
+            if (alarms.length === 0) {
+                alarmsList.innerHTML = '<div class="alarm-item"><span class="alarm-name">Пока нет сигналов</span></div>';
+                return;
+            }
+            
+            alarms.forEach(alarm => {
+                const alarmElement = document.createElement('div');
+                alarmElement.className = 'alarm-item';
+                if (alarm === closestAlarm) {
+                    alarmElement.classList.add('active-alarm');
+                }
+                
+                let details = '';
+                if (alarm.type === 'location') {
+                    details = `${alarm.radius} м`;
+                } else if (alarm.type === 'time') {
+                    details = `${alarm.time} (${getRepeatText(alarm.repeat)})`;
+                }
+                
+                alarmElement.innerHTML = `
+                    <div>
+                        <div class="alarm-name">${alarm.name}</div>
+                        <div class="alarm-details">${details}</div>
+                    </div>
+                    <button class="delete-alarm" data-id="${alarm.id}">×</button>
+                `;
+                
+                alarmsList.appendChild(alarmElement);
+            });
+            
+            // Добавляем обработчики для кнопок удаления
+            document.querySelectorAll('.delete-alarm').forEach(button => {
+                button.addEventListener('click', function() {
+                    const alarmId = this.getAttribute('data-id');
+                    deleteAlarm(alarmId);
+                });
+            });
+        }
+        
+        // Получение текста для повторения
+        function getRepeatText(repeat) {
+            switch(repeat) {
+                case 'once': return 'один раз';
+                case 'daily': return 'ежедневно';
+                case 'weekdays': return 'по будням';
+                case 'weekends': return 'по выходным';
+                default: return repeat;
+            }
+        }
+        
+        // Удаление сигнала
+        function deleteAlarm(alarmId) {
+            const alarmIndex = alarms.findIndex(a => a.id === alarmId);
+            if (alarmIndex !== -1) {
+                // Если это геолокационный сигнал, удаляем с карты
+                if (alarms[alarmIndex].type === 'location') {
+                    map.removeLayer(alarms[alarmIndex].circle);
+                    map.removeLayer(alarms[alarmIndex].marker);
+                }
+                
+                // Удаляем из массива
+                alarms.splice(alarmIndex, 1);
+                
+                // Обновляем список
+                updateAlarmsList();
+                
+                // Обновляем статус
+                alarmStatus.textContent = "Сигнал удален";
+                setTimeout(() => {
+                    alarmStatus.textContent = "Система будильников активна";
+                }, 3000);
+            }
+        }
+        
+        // Очистка всех сигналов
+        clearAlarmsBtn.addEventListener('click', function() {
+            if (alarms.length === 0) return;
+            
+            if (confirm("Вы уверены, что хотите удалить все сигналы?")) {
+                alarms.forEach(alarm => {
+                    if (alarm.type === 'location') {
+                        map.removeLayer(alarm.circle);
+                        map.removeLayer(alarm.marker);
+                    }
+                });
+                
+                alarms = [];
+                updateAlarmsList();
+                closestAlarm = null;
+                distanceInfo.textContent = "-";
+                distanceInfo.classList.remove('active');
+                
+                alarmStatus.textContent = "Все сигналы удалены";
+                setTimeout(() => {
+                    alarmStatus.textContent = "Система будильников активна";
+                }, 3000);
+            }
+        });
+        
+        // Получение текущего местоположения пользователя
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                // Получаем текущее положение один раз
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        updateUserPosition(position);
+                    },
+                    function(error) {
+                        locationStatus.textContent = 'Ошибка получения местоположения: ' + error.message;
+                    }
+                );
+                
+                // Начинаем отслеживание местоположения
+                if (watchId) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                
+                watchId = navigator.geolocation.watchPosition(
+                    function(position) {
+                        updateUserPosition(position);
+                        checkLocationAlarms();
+                    },
+                    function(error) {
+                        locationStatus.textContent = 'Ошибка отслеживания: ' + error.message;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 60000
+                    }
+                );
+            } else {
+                locationStatus.textContent = 'Геолокация не поддерживается вашим браузером';
+            }
+        }
+        
+        // Обновление позиции пользователя на карте
+        function updateUserPosition(position) {
+            const userLatLng = [position.coords.latitude, position.coords.longitude];
+            
+            // Если это первый раз, центрируем карту
+            if (!userMarker) {
+                map.setView(userLatLng, 15);
+                userMarker = L.marker(userLatLng).addTo(map).bindPopup('Ваше текущее местоположение');
+            } else {
+                userMarker.setLatLng(userLatLng);
+            }
+            
+            // Обновляем статус
+            locationStatus.textContent = `Широта: ${userLatLng[0].toFixed(6)}, Долгота: ${userLatLng[1].toFixed(6)}`;
+        }
+        
+        // Проверка расстояния до геолокационных сигналов
+        function checkLocationAlarms() {
+            if (!userMarker || alarms.length === 0) return;
+            
+            const userLatLng = userMarker.getLatLng();
+            let minDistance = Infinity;
+            let closest = null;
+            
+            // Находим ближайший сигнал
+            alarms.forEach(alarm => {
+                if (alarm.type !== 'location') return;
+                
+                const distance = userLatLng.distanceTo(alarm.latlng);
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closest = alarm;
+                }
+                
+                // Если пользователь в радиусе сигнала
+                if (distance <= alarm.radius) {
+                    // Активируем сигнал, если он еще не активирован
+                    if (alarm.active) {
+                        triggerAlarm(alarm);
+                    }
+                }
+            });
+            
+            // Обновляем информацию о ближайшем сигнале
+            closestAlarm = closest;
+            if (closest) {
+                distanceInfo.textContent = `${Math.round(minDistance)} м до "${closest.name}"`;
+                distanceInfo.classList.add('active');
+            } else {
+                distanceInfo.textContent = "-";
+                distanceInfo.classList.remove('active');
+            }
+            
+            updateAlarmsList();
+        }
+        
+        // Проверка временных будильников
+        function checkTimeAlarms() {
+            const now = new Date();
+            const currentTimeString = now.toTimeString().substring(0, 5);
+            
+            alarms.forEach(alarm => {
+                if (alarm.type !== 'time') return;
+                
+                if (alarm.time === currentTimeString && alarm.active) {
+                    // Проверяем, нужно ли срабатывать по расписанию
+                    if (shouldTriggerTimeAlarm(alarm, now)) {
+                        triggerAlarm(alarm);
+                        
+                        // Если будильник на один раз, деактивируем его
+                        if (alarm.repeat === 'once') {
+                            alarm.active = false;
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Проверка, должен ли сработать временной будильник
+        function shouldTriggerTimeAlarm(alarm, now) {
+            const dayOfWeek = now.getDay(); // 0 - воскресенье, 1 - понедельник, и т.д.
+            
+            switch(alarm.repeat) {
+                case 'once':
+                    return true;
+                case 'daily':
+                    return true;
+                case 'weekdays':
+                    return dayOfWeek >= 1 && dayOfWeek <= 5;
+                case 'weekends':
+                    return dayOfWeek === 0 || dayOfWeek === 6;
+                default:
+                    return true;
+            }
+        }
+        
+        // Активация сигнала
+        function triggerAlarm(alarm) {
+            // Визуальное оповещение
+            alarmStatus.textContent = `СИГНАЛ: ${alarm.message}`;
+            alarmStatus.classList.add('alarm-active');
+            
+            // Звуковое оповещение
+            playAlarmSound(alarm.soundType);
+            
+            // Вибрация (если поддерживается)
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+            
+            // Деактивируем геолокационный сигнал на некоторое время
+            if (alarm.type === 'location') {
+                alarm.active = false;
+                setTimeout(() => {
+                    alarm.active = true;
+                    alarmStatus.classList.remove('alarm-active');
+                    alarmStatus.textContent = "Система будильников активна";
+                }, 10000);
+            } else {
+                // Для временных будильников убираем оповещение через 10 секунд
+                setTimeout(() => {
+                    alarmStatus.classList.remove('alarm-active');
+                    alarmStatus.textContent = "Система будильников активна";
+                }, 10000);
+            }
+        }
+        
+        // Воспроизведение звука сигнала
+        function playAlarmSound(soundType) {
+            // В реальном приложении здесь были бы разные звуковые файлы
+            try {
+                const audio = new Audio();
+                // Используем базовую реализацию без внешних файлов
+                console.log(`Воспроизведение звука: ${soundType}`);
+            } catch(e) {
+                console.log("Ошибка воспроизведения звука:", e);
+            }
+        }
+        
+        // Обновление текущего времени
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toTimeString().substring(0, 8);
+            currentTime.textContent = timeString;
+        }
+        
+        // Обработчик для кнопки создания геолокационного сигнала
+        createAlarmBtn.addEventListener('click', function() {
+            alert("Кликните на карте, чтобы установить геолокационный сигнал");
+        });
+        
+        // Инициализация при загрузке страницы
+        window.addEventListener('load', function() {
+            getUserLocation();
+            
+            // Запускаем обновление времени
+            updateCurrentTime();
+            currentTimeInterval = setInterval(updateCurrentTime, 1000);
+            
+            // Запускаем проверку временных будильников
+            setInterval(checkTimeAlarms, 1000);
+            
+            // Создаем демо-сигнал
+            setTimeout(() => {
+                if (alarms.length === 0) {
+                    const demoLatLng = map.getCenter();
+                    demoLatLng.lat += 0.005;
+                    demoLatLng.lng += 0.005;
+                    
+                    createLocationAlarm(
+                        demoLatLng, 
+                        "Пример геосигнала", 
+                        "Вы достигли демонстрационного сигнала! Создайте свои сигналы, кликая по карте.", 
+                        300, 
+                        "standard"
+                    );
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
