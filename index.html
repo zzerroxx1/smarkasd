@@ -151,6 +151,36 @@
             font-size: 0.9rem;
         }
         
+        .location-controls {
+            position: absolute;
+            bottom: 15px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .location-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .location-btn:active {
+            transform: scale(0.95);
+        }
+        
         .status-dot {
             width: 10px;
             height: 10px;
@@ -391,9 +421,19 @@
             flex: 1;
         }
         
+        .user-location-marker {
+            background: var(--accent);
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            box-shadow: 0 0 10px var(--accent);
+            animation: pulse 2s infinite;
+        }
+        
         @keyframes pulse {
             0% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.7; }
             100% { opacity: 1; }
         }
         
@@ -436,10 +476,6 @@
                 max-width: 100%;
             }
             
-            .content {
-                flex-direction: row;
-            }
-            
             .map-container {
                 height: 400px;
             }
@@ -464,6 +500,10 @@
             <div class="map-overlay">
                 <div class="status-dot"></div>
                 <span>Сигналов: <span id="activeAlarmsCount">0</span></span>
+            </div>
+            <div class="location-controls">
+                <button class="location-btn" id="locateUser" title="Найти меня">📍</button>
+                <button class="location-btn" id="trackUser" title="Следить за мной">👁️</button>
             </div>
         </div>
         
@@ -576,10 +616,12 @@
         
         // Переменные для хранения данных
         let userMarker = null;
+        let userAccuracyCircle = null;
         let alarms = [];
         let watchId = null;
         let closestAlarm = null;
         let currentTimeInterval = null;
+        let isTracking = false;
         
         // Элементы DOM
         const locationStatus = document.getElementById('locationStatus');
@@ -589,6 +631,8 @@
         const createTimeAlarmBtn = document.getElementById('createTimeAlarmBtn');
         const clearAlarmsBtn = document.getElementById('clearAlarmsBtn');
         const testAlarmBtn = document.getElementById('testAlarmBtn');
+        const locateUserBtn = document.getElementById('locateUser');
+        const trackUserBtn = document.getElementById('trackUser');
         const alarmRadius = document.getElementById('alarmRadius');
         const radiusValue = document.getElementById('radiusValue');
         const alarmsList = document.getElementById('alarmsList');
@@ -824,6 +868,30 @@
             });
         });
         
+        // Кнопка "Найти меня"
+        locateUserBtn.addEventListener('click', function() {
+            if (userMarker) {
+                map.setView(userMarker.getLatLng(), 16);
+            } else {
+                getUserLocation();
+            }
+        });
+        
+        // Кнопка "Следить за мной"
+        trackUserBtn.addEventListener('click', function() {
+            isTracking = !isTracking;
+            if (isTracking) {
+                trackUserBtn.style.background = 'var(--accent)';
+                trackUserBtn.title = 'Отключить слежение';
+                if (userMarker) {
+                    map.setView(userMarker.getLatLng(), 16);
+                }
+            } else {
+                trackUserBtn.style.background = 'var(--primary)';
+                trackUserBtn.title = 'Следить за мной';
+            }
+        });
+        
         // Получение текущего местоположения пользователя
         function getUserLocation() {
             if (navigator.geolocation) {
@@ -834,6 +902,11 @@
                     },
                     function(error) {
                         locationStatus.textContent = 'Ошибка получения местоположения: ' + error.message;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
                     }
                 );
                 
@@ -853,7 +926,7 @@
                     {
                         enableHighAccuracy: true,
                         timeout: 10000,
-                        maximumAge: 60000
+                        maximumAge: 1000
                     }
                 );
             } else {
@@ -864,17 +937,43 @@
         // Обновление позиции пользователя на карте
         function updateUserPosition(position) {
             const userLatLng = [position.coords.latitude, position.coords.longitude];
+            const accuracy = position.coords.accuracy;
             
             // Если это первый раз, центрируем карту
             if (!userMarker) {
-                map.setView(userLatLng, 15);
-                userMarker = L.marker(userLatLng).addTo(map).bindPopup('Ваше текущее местоположение');
+                map.setView(userLatLng, 16);
+                
+                // Создаем маркер пользователя с кастомной иконкой
+                userMarker = L.marker(userLatLng, {
+                    icon: L.divIcon({
+                        className: 'user-location-marker',
+                        html: '<div class="user-location-marker"></div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(map).bindPopup('Ваше текущее местоположение');
+                
+                // Создаем круг точности
+                userAccuracyCircle = L.circle(userLatLng, {
+                    color: '#FF6B6B',
+                    fillColor: '#FF6B6B',
+                    fillOpacity: 0.2,
+                    radius: accuracy
+                }).addTo(map);
             } else {
                 userMarker.setLatLng(userLatLng);
+                userAccuracyCircle.setLatLng(userLatLng);
+                userAccuracyCircle.setRadius(accuracy);
+            }
+            
+            // Если включено слежение, центрируем карту на пользователе
+            if (isTracking) {
+                map.setView(userLatLng, map.getZoom());
             }
             
             // Обновляем статус
             locationStatus.textContent = `Широта: ${userLatLng[0].toFixed(6)}, Долгота: ${userLatLng[1].toFixed(6)}`;
+            locationStatus.innerHTML += `<br>Точность: ${Math.round(accuracy)} м`;
         }
         
         // Проверка расстояния до геолокационных сигналов
