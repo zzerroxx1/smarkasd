@@ -431,6 +431,75 @@
             animation: pulse 2s infinite;
         }
         
+        .custom-sounds-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .custom-sounds-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .custom-sound-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(74, 111, 165, 0.1);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .sound-name {
+            font-size: 0.9rem;
+        }
+        
+        .sound-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .sound-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .file-upload-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .file-upload-label {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: rgba(74, 111, 165, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        #audioUpload {
+            display: none;
+        }
+        
         @keyframes pulse {
             0% { opacity: 1; }
             50% { opacity: 0.7; }
@@ -493,6 +562,7 @@
         <div class="tabs">
             <button class="tab active" data-tab="location">Геолокация</button>
             <button class="tab" data-tab="time">По времени</button>
+            <button class="tab" data-tab="sounds">Мои звуки</button>
         </div>
         
         <div class="map-container">
@@ -526,6 +596,7 @@
                         <option value="standard">Стандартный</option>
                         <option value="melodic">Мелодичный</option>
                         <option value="vibration">Вибрация</option>
+                        <option value="custom">Пользовательский звук</option>
                     </select>
                     
                     <label for="alarmMessage">Сообщение:</label>
@@ -558,12 +629,38 @@
                         <option value="standard">Стандартный</option>
                         <option value="melodic">Мелодичный</option>
                         <option value="vibration">Вибрация</option>
+                        <option value="custom">Пользовательский звук</option>
                     </select>
                     
                     <label for="timeAlarmMessage">Сообщение:</label>
                     <textarea id="timeAlarmMessage" placeholder="Текст напоминания..." rows="2"></textarea>
                     
                     <button id="createTimeAlarmBtn">Создать будильник</button>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="sounds-tab">
+                <div class="control-group">
+                    <div class="section-title">Загрузка звуков</div>
+                    
+                    <p>Загрузите свои звуки для будильников (MP3, WAV, OGG)</p>
+                    
+                    <div class="file-upload-container">
+                        <label for="audioUpload" class="file-upload-label">
+                            📁 Выбрать звуковой файл
+                        </label>
+                        <input type="file" id="audioUpload" accept="audio/*">
+                        <button id="uploadSoundBtn">Загрузить</button>
+                    </div>
+                    
+                    <div class="custom-sounds-section">
+                        <div class="section-title">Мои звуки</div>
+                        <div class="custom-sounds-list" id="customSoundsList">
+                            <div class="custom-sound-item">
+                                <span class="sound-name">Пока нет загруженных звуков</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -618,10 +715,12 @@
         let userMarker = null;
         let userAccuracyCircle = null;
         let alarms = [];
+        let customSounds = [];
         let watchId = null;
         let closestAlarm = null;
         let currentTimeInterval = null;
         let isTracking = false;
+        let selectedFile = null;
         
         // Элементы DOM
         const locationStatus = document.getElementById('locationStatus');
@@ -633,13 +732,138 @@
         const testAlarmBtn = document.getElementById('testAlarmBtn');
         const locateUserBtn = document.getElementById('locateUser');
         const trackUserBtn = document.getElementById('trackUser');
+        const uploadSoundBtn = document.getElementById('uploadSoundBtn');
+        const audioUpload = document.getElementById('audioUpload');
         const alarmRadius = document.getElementById('alarmRadius');
         const radiusValue = document.getElementById('radiusValue');
         const alarmsList = document.getElementById('alarmsList');
+        const customSoundsList = document.getElementById('customSoundsList');
         const activeAlarmsCount = document.getElementById('activeAlarmsCount');
         const currentTime = document.getElementById('currentTime');
         const tabs = document.querySelectorAll('.tab');
         const tabContents = document.querySelectorAll('.tab-content');
+        
+        // Загрузка пользовательских звуков из localStorage
+        function loadCustomSounds() {
+            const savedSounds = localStorage.getItem('customSounds');
+            if (savedSounds) {
+                customSounds = JSON.parse(savedSounds);
+                updateCustomSoundsList();
+            }
+        }
+        
+        // Сохранение пользовательских звуков в localStorage
+        function saveCustomSounds() {
+            localStorage.setItem('customSounds', JSON.stringify(customSounds));
+        }
+        
+        // Обновление списка пользовательских звуков
+        function updateCustomSoundsList() {
+            customSoundsList.innerHTML = '';
+            
+            if (customSounds.length === 0) {
+                customSoundsList.innerHTML = '<div class="custom-sound-item"><span class="sound-name">Пока нет загруженных звуков</span></div>';
+                return;
+            }
+            
+            customSounds.forEach((sound, index) => {
+                const soundElement = document.createElement('div');
+                soundElement.className = 'custom-sound-item';
+                soundElement.innerHTML = `
+                    <span class="sound-name">${sound.name}</span>
+                    <div class="sound-controls">
+                        <button class="sound-btn play-sound" data-index="${index}" title="Воспроизвести">▶️</button>
+                        <button class="sound-btn delete-sound" data-index="${index}" title="Удалить">🗑️</button>
+                    </div>
+                `;
+                customSoundsList.appendChild(soundElement);
+            });
+            
+            // Добавляем обработчики для кнопок воспроизведения и удаления
+            document.querySelectorAll('.play-sound').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    playCustomSound(index);
+                });
+            });
+            
+            document.querySelectorAll('.delete-sound').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    deleteCustomSound(index);
+                });
+            });
+        }
+        
+        // Воспроизведение пользовательского звука
+        function playCustomSound(index) {
+            if (index >= 0 && index < customSounds.length) {
+                const sound = customSounds[index];
+                const audio = new Audio(sound.data);
+                audio.play().catch(e => {
+                    console.log("Ошибка воспроизведения звука:", e);
+                    alert("Не удалось воспроизвести звук. Проверьте формат файла.");
+                });
+            }
+        }
+        
+        // Удаление пользовательского звука
+        function deleteCustomSound(index) {
+            if (index >= 0 && index < customSounds.length) {
+                if (confirm(`Удалить звук "${customSounds[index].name}"?`)) {
+                    customSounds.splice(index, 1);
+                    saveCustomSounds();
+                    updateCustomSoundsList();
+                }
+            }
+        }
+        
+        // Обработчик выбора файла
+        audioUpload.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                // Показываем имя выбранного файла
+                document.querySelector('.file-upload-label').textContent = `📁 ${selectedFile.name}`;
+            }
+        });
+        
+        // Обработчик загрузки звука
+        uploadSoundBtn.addEventListener('click', function() {
+            if (!selectedFile) {
+                alert("Пожалуйста, выберите звуковой файл");
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const soundData = e.target.result;
+                
+                // Проверяем размер файла (ограничение 5MB)
+                if (selectedFile.size > 5 * 1024 * 1024) {
+                    alert("Файл слишком большой. Максимальный размер - 5MB.");
+                    return;
+                }
+                
+                // Добавляем звук в список
+                customSounds.push({
+                    name: selectedFile.name,
+                    data: soundData
+                });
+                
+                // Сохраняем и обновляем список
+                saveCustomSounds();
+                updateCustomSoundsList();
+                
+                // Сбрасываем выбор файла
+                selectedFile = null;
+                audioUpload.value = '';
+                document.querySelector('.file-upload-label').textContent = '📁 Выбрать звуковой файл';
+                
+                alert("Звук успешно загружен!");
+            };
+            
+            reader.readAsDataURL(selectedFile);
+        });
         
         // Обновление значения радиуса
         alarmRadius.addEventListener('input', function() {
@@ -1090,13 +1314,21 @@
         
         // Воспроизведение звука сигнала
         function playAlarmSound(soundType) {
-            // В реальном приложении здесь были бы разные звуковые файлы
-            try {
-                const audio = new Audio();
-                // Используем базовую реализацию без внешних файлов
-                console.log(`Воспроизведение звука: ${soundType}`);
-            } catch(e) {
-                console.log("Ошибка воспроизведения звука:", e);
+            if (soundType === 'custom' && customSounds.length > 0) {
+                // Воспроизводим случайный пользовательский звук
+                const randomIndex = Math.floor(Math.random() * customSounds.length);
+                const sound = customSounds[randomIndex];
+                const audio = new Audio(sound.data);
+                audio.play().catch(e => console.log("Ошибка воспроизведения звука:", e));
+            } else {
+                // В реальном приложении здесь были бы разные звуковые файлы
+                try {
+                    const audio = new Audio();
+                    // Используем базовую реализацию без внешних файлов
+                    console.log(`Воспроизведение звука: ${soundType}`);
+                } catch(e) {
+                    console.log("Ошибка воспроизведения звука:", e);
+                }
             }
         }
         
@@ -1115,6 +1347,7 @@
         // Инициализация при загрузке страницы
         window.addEventListener('load', function() {
             getUserLocation();
+            loadCustomSounds();
             
             // Запускаем обновление времени
             updateCurrentTime();
