@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный будильник | Решение проблем с уведомлениями</title>
+    <style>
+        :root {
+            --primary: #4A6FA5;
+            --secondary: #2E5077;
+            --accent: #FF6B6B;
+            --dark: #1A2D42;
+            --light: #F5F7FA;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--dark) 0%, #0F1A2B 100%);
+            color: var(--light);
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(26, 45, 66, 0.8);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+        
+        h2 {
+            margin: 25px 0 15px;
+            color: var(--accent);
+            border-left: 4px solid var(--accent);
+            padding-left: 10px;
+        }
+        
+        .problem-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .solution-steps {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .solution-steps li {
+            margin-bottom: 10px;
+        }
+        
+        .test-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .success {
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .error {
+            background: rgba(244, 67, 54, 0.2);
+            border-left: 4px solid #F44336;
+        }
+        
+        .warning {
+            background: rgba(255, 193, 7, 0.2);
+            border-left: 4px solid #FFC107;
+        }
+        
+        .info {
+            background: rgba(33, 150, 243, 0.2);
+            border-left: 4px solid #2196F3;
+        }
+        
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        
+        .browser-icons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .browser-icon {
+            text-align: center;
+            width: 80px;
+        }
+        
+        .browser-icon img {
+            width: 50px;
+            height: 50px;
+            margin-bottom: 5px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .test-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Решение проблем с уведомлениями в браузере</h1>
+        
+        <div class="problem-section">
+            <h2>Проблема: Уведомления не работают после нажатия "Разрешить"</h2>
+            <p>Если вы нажали кнопку "Разрешить уведомления", но они не приходят и кнопка не пропадает, это может быть вызвано несколькими причинами.</p>
+        </div>
+        
+        <h2>Возможные решения:</h2>
+        
+        <div class="problem-section">
+            <h3>1. Проверьте настройки браузера</h3>
+            <p>Уведомления могут быть отключены на уровне браузера:</p>
+            <ul class="solution-steps">
+                <li><strong>Chrome:</strong> Настройки → Конфиденциальность и безопасность → Настройки сайта → Уведомления</li>
+                <li><strong>Firefox:</strong> Настройки → Конфиденциальность и защита → Разрешения → Уведомления</li>
+                <li><strong>Safari:</strong> Настройки → Веб-сайты → Уведомления</li>
+                <li><strong>Edge:</strong> Настройки → Разрешения сайта → Уведомления</li>
+            </ul>
+        </div>
+        
+        <div class="problem-section">
+            <h3>2. Проверьте настройки операционной системы</h3>
+            <p>Уведомления могут быть отключены в настройках ОС:</p>
+            <ul class="solution-steps">
+                <li><strong>Windows 10/11:</strong> Параметры → Система → Уведомления и действия</li>
+                <li><strong>macOS:</strong> Системные настройки → Уведомления и фокус</li>
+                <li><strong>Android:</strong> Настройки → Уведомления → Дополнительные настройки → Уведомления приложений</li>
+                <li><strong>iOS:</strong> Настройки → Уведомления → [Название браузера]</li>
+            </ul>
+        </div>
+        
+        <div class="problem-section">
+            <h3>3. Проверьте, работает ли сайт по HTTPS</h3>
+            <p>Большинство браузеров требуют HTTPS для работы уведомлений. Если вы используете HTTP, уведомления не будут работать.</p>
+        </div>
+        
+        <div class="problem-section">
+            <h3>4. Очистите разрешения для сайта</h3>
+            <p>Иногда помогает сброс разрешений для конкретного сайта:</p>
+            <ul class="solution-steps">
+                <li>Перейдите в настройки браузера</li>
+                <li>Найдите раздел "Разрешения для сайтов" или "Настройки содержимого"</li>
+                <li>Найдите адрес этого сайта в списке</li>
+                <li>Удалите его из списка или сбросьте разрешения</li>
+                <li>Перезагрузите страницу и попробуйте снова</li>
+            </ul>
+        </div>
+        
+        <div class="problem-section">
+            <h3>5. Проверьте, не заблокированы ли уведомления в фокусе/режиме "Не беспокоить"</h3>
+            <p>Режим "Не беспокоить" или настройки фокуса могут блокировать уведомления даже если они разрешены.</p>
+        </div>
+        
+        <div class="problem-section">
+            <h3>6. Проверьте, поддерживает ли браузер уведомления</h3>
+            <p>Некоторые старые браузеры или специальные режимы могут не поддерживать уведомления.</p>
+            <div class="browser-icons">
+                <div class="browser-icon">
+                    <div>Chrome</div>
+                    <div>✓ Поддерживает</div>
+                </div>
+                <div class="browser-icon">
+                    <div>Firefox</div>
+                    <div>✓ Поддерживает</div>
+                </div>
+                <div class="browser-icon">
+                    <div>Safari</div>
+                    <div>✓ Поддерживает</div>
+                </div>
+                <div class="browser-icon">
+                    <div>Edge</div>
+                    <div>✓ Поддерживает</div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Тестирование уведомлений</h2>
+        
+        <div class="test-buttons">
+            <button id="testNotification">Тест уведомления</button>
+            <button id="checkPermission">Проверить разрешение</button>
+            <button id="requestPermission">Запросить разрешение</button>
+        </div>
+        
+        <div id="statusMessage" class="status info">
+            Нажмите "Проверить разрешение", чтобы увидеть текущий статус уведомлений.
+        </div>
+        
+        <div class="problem-section">
+            <h3>Технические детали для разработчиков</h3>
+            <p>Если вы разрабатываете приложение, вот исправленный код для работы с уведомлениями:</p>
+            <pre><code>
+// Улучшенная функция проверки разрешений
+async function checkNotificationPermission() {
+    if (!("Notification" in window)) {
+        return { supported: false, permission: "not-supported" };
+    }
+    
+    const permission = Notification.permission;
+    
+    if (permission === "granted") {
+        return { supported: true, permission: "granted" };
+    } else if (permission === "denied") {
+        return { supported: true, permission: "denied" };
+    } else {
+        return { supported: true, permission: "default" };
+    }
+}
+
+// Улучшенная функция запроса разрешений
+async function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+        throw new Error("Браузер не поддерживает уведомления");
+    }
+    
+    try {
+        const permission = await Notification.requestPermission();
+        return permission;
+    } catch (error) {
+        console.error("Ошибка при запросе разрешения:", error);
+        throw error;
+    }
+}
+
+// Улучшенная функция показа уведомления
+function showNotification(title, options = {}) {
+    if (!("Notification" in window)) {
+        console.warn("Браузер не поддерживает уведомления");
+        return null;
+    }
+    
+    if (Notification.permission !== "granted") {
+        console.warn("Разрешение на уведомления не предоставлено");
+        return null;
+    }
+    
+    try {
+        const notification = new Notification(title, {
+            icon: options.icon || "/icon.png",
+            badge: options.badge || "/badge.png",
+            body: options.body || "",
+            tag: options.tag || "default",
+            ...options
+        });
+        
+        notification.onclick = () => {
+            window.focus();
+            notification.close();
+        };
+        
+        return notification;
+    } catch (error) {
+        console.error("Ошибка при создании уведомления:", error);
+        return null;
+    }
+}
+            </code></pre>
+        </div>
+    </div>
+
+    <script>
+        const statusMessage = document.getElementById('statusMessage');
+        
+        // Функция для обновления статуса
+        function updateStatus(message, type = 'info') {
+            statusMessage.textContent = message;
+            statusMessage.className = 'status ' + type;
+        }
+        
+        // Проверка поддержки уведомлений
+        function checkNotificationSupport() {
+            if (!("Notification" in window)) {
+                return {
+                    supported: false,
+                    permission: "not-supported",
+                    message: "Ваш браузер не поддерживает уведомления"
+                };
+            }
+            
+            const permission = Notification.permission;
+            let message = "";
+            
+            switch(permission) {
+                case "granted":
+                    message = "Уведомления разрешены";
+                    break;
+                case "denied":
+                    message = "Уведомления заблокированы. Разрешите их в настройках браузера.";
+                    break;
+                case "default":
+                    message = "Разрешение на уведомления еще не запрашивалось";
+                    break;
+            }
+            
+            return {
+                supported: true,
+                permission: permission,
+                message: message
+            };
+        }
+        
+        // Запрос разрешения
+        async function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                updateStatus("Ваш браузер не поддерживает уведомления", "error");
+                return;
+            }
+            
+            try {
+                const permission = await Notification.requestPermission();
+                
+                if (permission === "granted") {
+                    updateStatus("Уведомления разрешены! Теперь вы можете получать уведомления.", "success");
+                } else if (permission === "denied") {
+                    updateStatus("Вы отклонили запрос на уведомления. Разрешите их в настройках браузера.", "warning");
+                } else {
+                    updateStatus("Вы отложили решение о разрешении уведомлений.", "info");
+                }
+            } catch (error) {
+                updateStatus("Произошла ошибка при запросе разрешения: " + error.message, "error");
+            }
+        }
+        
+        // Показать тестовое уведомление
+        function showTestNotification() {
+            const support = checkNotificationSupport();
+            
+            if (!support.supported) {
+                updateStatus(support.message, "error");
+                return;
+            }
+            
+            if (support.permission !== "granted") {
+                updateStatus("Сначала разрешите уведомления", "warning");
+                return;
+            }
+            
+            try {
+                const notification = new Notification("Тестовое уведомление", {
+                    body: "Если вы видите это уведомление, значит все работает правильно!",
+                    icon: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTMyIDhDNDEuOTUxIDggNTAgMTYuMDQ5IDUwIDI2VjQwTDU0IDQ0SDMySDZMMTAgNDBWMjZDMTAgMTYuMDQ5IDE4LjA0OSA4IDMyIDhaTTI0IDUwSDQwQzQwIDUzLjMxMzcgMzcuMzEzNyA1NiAzNCA1NkgyNkMyOS4zMTM3IDU2IDMyIDUzLjMxMzcgMzIgNTBaIiBmaWxsPSIjNEhGQjZCIi8+Cjwvc3ZnPg==",
+                    badge: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTMyIDhDNDEuOTUxIDggNTAgMTYuMDQ5IDUwIDI2VjQwTDU0IDQ0SDMySDZMMTAgNDBWMjZDMTAgMTYuMDQ5IDE4LjA0OSA4IDMyIDhaTTI0IDUwSDQwQzQwIDUzLjMxMzcgMzcuMzEzNyA1NiAzNCA1NkgyNkMyOS4zMTM3IDU2IDMyIDUzLjMxMzcgMzIgNTBaIiBmaWxsPSIjNEhGQjZCIi8+Cjwvc3ZnPg==",
+                    tag: "test-notification"
+                });
+                
+                notification.onclick = function() {
+                    window.focus();
+                    notification.close();
+                };
+                
+                updateStatus("Тестовое уведомление отправлено!", "success");
+            } catch (error) {
+                updateStatus("Ошибка при создании уведомления: " + error.message, "error");
+            }
+        }
+        
+        // Обработчики кнопок
+        document.getElementById('testNotification').addEventListener('click', showTestNotification);
+        document.getElementById('checkPermission').addEventListener('click', function() {
+            const support = checkNotificationSupport();
+            updateStatus(support.message, support.permission === "granted" ? "success" : "warning");
+        });
+        document.getElementById('requestPermission').addEventListener('click', requestNotificationPermission);
+        
+        // Проверить поддержку при загрузке
+        window.addEventListener('load', function() {
+            const support = checkNotificationSupport();
+            updateStatus(support.message, support.permission === "granted" ? "success" : "info");
+        });
+    </script>
+</body>
+</html>
