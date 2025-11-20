@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Умный будильник | Стабильные уведомления</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #4A6FA5;
+            --secondary: #2E5077;
+            --accent: #FF6B6B;
+            --dark: #1A2D42;
+            --light: #F5F7FA;
+            --success: #4ECDC4;
+            --warning: #FFD166;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', 'Segoe UI', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--dark) 0%, #0F1A2B 100%);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 15px;
+            background: rgba(26, 45, 66, 0.7);
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(74, 111, 165, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--success));
+        }
+        
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            letter-spacing: 0.5px;
+        }
+        
+        .tagline {
+            font-size: 1rem;
+            max-width: 100%;
+            margin: 0 auto;
+            color: rgba(245, 247, 250, 0.8);
+            line-height: 1.5;
+        }
+        
+        .notification-permission {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid var(--accent);
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin: 10px 0;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .notification-permission button {
+            background: var(--accent);
+            margin-top: 8px;
+        }
+        
+        .notification-status {
+            background: rgba(78, 205, 196, 0.2);
+            border: 1px solid var(--success);
+            border-radius: 10px;
+            padding: 10px 15px;
+            margin: 8px 0;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .notification-status.active {
+            animation: pulse 2s infinite;
+        }
+        
+        .tabs {
+            display: flex;
+            background: rgba(26, 45, 66, 0.7);
+            border-radius: 12px;
+            padding: 3px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            color: var(--light);
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            min-width: 140px;
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            box-shadow: 0 3px 10px rgba(74, 111, 165, 0.4);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .map-container {
+            width: 100%;
+            height: 300px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+            position: relative;
+            border: 1px solid rgba(74, 111, 165, 0.3);
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 15px;
+        }
+        
+        .map-overlay {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(26, 45, 66, 0.9);
+            padding: 8px 15px;
+            border-radius: 50px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--primary);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-size: 0.9rem;
+        }
+        
+        .location-controls {
+            position: absolute;
+            bottom: 15px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .location-btn {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .location-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+        
+        .controls {
+            width: 100%;
+            background: rgba(26, 45, 66, 0.7);
+            padding: 20px 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(74, 111, 165, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+        
+        label {
+            font-weight: bold;
+            font-size: 0.95rem;
+            color: rgba(245, 247, 250, 0.9);
+        }
+        
+        input, select, textarea, button {
+            padding: 14px 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: rgba(245, 247, 250, 0.1);
+            color: var(--light);
+            border: 1px solid rgba(74, 111, 165, 0.3);
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+        }
+        
+        input::placeholder, textarea::placeholder {
+            color: rgba(245, 247, 250, 0.5);
+        }
+        
+        .range-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .range-value {
+            min-width: 50px;
+            text-align: center;
+            font-weight: bold;
+            background: var(--primary);
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 8px;
+            position: relative;
+            overflow: hidden;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
+            padding: 16px;
+        }
+        
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        button:hover::before {
+            left: 100%;
+        }
+        
+        button:active {
+            transform: translateY(2px);
+        }
+        
+        button:disabled {
+            background: rgba(245, 247, 250, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        button:disabled::before {
+            display: none;
+        }
+        
+        .status-panel {
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            margin-top: 8px;
+            border-left: 3px solid var(--primary);
+            font-size: 0.9rem;
+        }
+        
+        .alarm-active {
+            animation: alarm-pulse 1.5s infinite;
+            border-left-color: var(--accent);
+            background: rgba(255, 107, 107, 0.2);
+        }
+        
+        .distance-info {
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(74, 111, 165, 0.3);
+            margin: 8px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .distance-info::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(74, 111, 165, 0.1), transparent);
+            transform: translateX(-100%);
+        }
+        
+        .distance-info.active::before {
+            animation: shimmer 3s infinite;
+        }
+        
+        .alarms-list {
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .alarm-item {
+            padding: 10px 12px;
+            background: rgba(74, 111, 165, 0.1);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(74, 111, 165, 0.3);
+        }
+        
+        .alarm-name {
+            font-weight: bold;
+            font-size: 0.95rem;
+        }
+        
+        .alarm-details {
+            font-size: 0.8rem;
+            color: rgba(245, 247, 250, 0.7);
+        }
+        
+        .active-alarm {
+            background: rgba(78, 205, 196, 0.15);
+            border-color: rgba(78, 205, 196, 0.5);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            border-top: 1px solid rgba(74, 111, 165, 0.2);
+        }
+        
+        .current-time {
+            font-size: 1.3rem;
+            text-align: center;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 8px 0;
+            font-weight: bold;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .action-buttons button {
+            flex: 1;
+        }
+        
+        .user-location-marker {
+            background: var(--accent);
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            box-shadow: 0 0 10px var(--accent);
+            animation: pulse 2s infinite;
+        }
+        
+        .custom-sounds-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .custom-sounds-list {
+            max-height: 150px;
+            overflow-y: auto;
+            margin: 10px 0;
+        }
+        
+        .custom-sound-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(74, 111, 165, 0.1);
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .sound-name {
+            font-size: 0.9rem;
+        }
+        
+        .sound-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .sound-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .file-upload-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .file-upload-label {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: rgba(74, 111, 165, 0.2);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        #audioUpload {
+            display: none;
+        }
+        
+        .notification-settings {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .notification-settings label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .notification-settings input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes alarm-pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Улучшения для очень маленьких экранов */
+        @media (max-width: 360px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .tab {
+                font-size: 0.8rem;
+                min-width: 120px;
+                padding: 10px 6px;
+            }
+            
+            .map-overlay {
+                font-size: 0.8rem;
+                padding: 6px 12px;
+            }
+            
+            input, select, textarea, button {
+                padding: 12px 14px;
+            }
+        }
+        
+        /* Горизонтальная ориентация */
+        @media (min-width: 768px) and (max-height: 500px) {
+            .container {
+                max-width: 100%;
+            }
+            
+            .map-container {
+                height: 400px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>УМНЫЙ БУДИЛЬНИК</h1>
+            <p class="tagline">Сигналы по времени и местоположению со стабильными уведомлениями</p>
+            
+            <div class="notification-permission" id="notificationPermission" style="display: none;">
+                <p>Для получения уведомлений разрешите доступ к уведомлениям в браузере</p>
+                <button id="enableNotificationsBtn">Разрешить уведомления</button>
+            </div>
+            
+            <div class="notification-status" id="notificationStatus">
+                <span>Статус уведомлений:</span>
+                <span id="notificationStatusText">Проверка...</span>
+            </div>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab active" data-tab="location">Геолокация</button>
+            <button class="tab" data-tab="time">По времени</button>
+            <button class="tab" data-tab="sounds">Мои звуки</button>
+        </div>
+        
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="map-overlay">
+                <div class="status-dot"></div>
+                <span>Сигналов: <span id="activeAlarmsCount">0</span></span>
+            </div>
+            <div class="location-controls">
+                <button class="location-btn" id="locateUser" title="Найти меня">📍</button>
+                <button class="location-btn" id="trackUser" title="Следить за мной">👁️</button>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="tab-content active" id="location-tab">
+                <div class="control-group">
+                    <div class="section-title">Геолокационный сигнал</div>
+                    
+                    <label for="alarmName">Название:</label>
+                    <input type="text" id="alarmName" placeholder="Работа, Тренировка...">
+                    
+                    <label for="alarmRadius">Радиус (метры):</label>
+                    <div class="range-container">
+                        <input type="range" id="alarmRadius" min="50" max="2000" value="300">
+                        <div class="range-value" id="radiusValue">300 м</div>
+                    </div>
+                    
+                    <label for="alarmSound">Тип сигнала:</label>
+                    <select id="alarmSound">
+                        <option value="standard">Стандартный</option>
+                        <option value="melodic">Мелодичный</option>
+                        <option value="vibration">Вибрация</option>
+                        <option value="custom">Пользовательский звук</option>
+                    </select>
+                    
+                    <label for="alarmMessage">Сообщение:</label>
+                    <textarea id="alarmMessage" placeholder="Текст напоминания..." rows="2"></textarea>
+                    
+                    <div class="notification-settings">
+                        <label>
+                            <input type="checkbox" id="locationNotification" checked>
+                            Показывать уведомление
+                        </label>
+                    </div>
+                    
+                    <button id="createAlarmBtn">Создать геосигнал</button>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="time-tab">
+                <div class="control-group">
+                    <div class="section-title">Временной будильник</div>
+                    
+                    <label for="timeAlarmName">Название:</label>
+                    <input type="text" id="timeAlarmName" placeholder="Подъем, Обед...">
+                    
+                    <label for="alarmTime">Время:</label>
+                    <input type="time" id="alarmTime">
+                    
+                    <label for="repeatDays">Повтор:</label>
+                    <select id="repeatDays">
+                        <option value="once">Один раз</option>
+                        <option value="daily">Ежедневно</option>
+                        <option value="weekdays">По будням</option>
+                        <option value="weekends">По выходным</option>
+                    </select>
+                    
+                    <label for="timeAlarmSound">Тип сигнала:</label>
+                    <select id="timeAlarmSound">
+                        <option value="standard">Стандартный</option>
+                        <option value="melodic">Мелодичный</option>
+                        <option value="vibration">Вибрация</option>
+                        <option value="custom">Пользовательский звук</option>
+                    </select>
+                    
+                    <label for="timeAlarmMessage">Сообщение:</label>
+                    <textarea id="timeAlarmMessage" placeholder="Текст напоминания..." rows="2"></textarea>
+                    
+                    <div class="notification-settings">
+                        <label>
+                            <input type="checkbox" id="timeNotification" checked>
+                            Показывать уведомление
+                        </label>
+                    </div>
+                    
+                    <button id="createTimeAlarmBtn">Создать будильник</button>
+                </div>
+            </div>
+            
+            <div class="tab-content" id="sounds-tab">
+                <div class="control-group">
+                    <div class="section-title">Загрузка звуков</div>
+                    
+                    <p>Загрузите свои звуки для будильников (MP3, WAV, OGG)</p>
+                    
+                    <div class="file-upload-container">
+                        <label for="audioUpload" class="file-upload-label">
+                            📁 Выбрать звуковой файл
+                        </label>
+                        <input type="file" id="audioUpload" accept="audio/*">
+                        <button id="uploadSoundBtn">Загрузить</button>
+                    </div>
+                    
+                    <div class="custom-sounds-section">
+                        <div class="section-title">Мои звуки</div>
+                        <div class="custom-sounds-list" id="customSoundsList">
+                            <div class="custom-sound-item">
+                                <span class="sound-name">Пока нет загруженных звуков</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">Текущее время</div>
+                <div class="current-time" id="currentTime">--:--:--</div>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">Мои сигналы</div>
+                <div class="alarms-list" id="alarmsList">
+                    <div class="alarm-item">
+                        <span class="alarm-name">Пока нет сигналов</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">Навигация</div>
+                
+                <label>Местоположение:</label>
+                <div class="status-panel" id="locationStatus">Определение местоположения...</div>
+                
+                <label>Расстояние до цели:</label>
+                <div class="distance-info" id="distanceInfo">-</div>
+                
+                <label>Статус:</label>
+                <div class="status-panel" id="alarmStatus">Система активна</div>
+                
+                <div class="action-buttons">
+                    <button id="clearAlarmsBtn">Очистить все</button>
+                    <button id="testAlarmBtn">Тест уведомления</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Умный будильник &copy; 2023 | Стабильные браузерные уведомления</p>
+        </footer>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // Инициализация карты
+        const map = L.map('map').setView([55.7558, 37.6173], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // Переменные для хранения данных
+        let userMarker = null;
+        let userAccuracyCircle = null;
+        let alarms = [];
+        let customSounds = [];
+        let watchId = null;
+        let closestAlarm = null;
+        let currentTimeInterval = null;
+        let isTracking = false;
+        let selectedFile = null;
+        let notificationPermission = false;
+        
+        // Элементы DOM
+        const locationStatus = document.getElementById('locationStatus');
+        const distanceInfo = document.getElementById('distanceInfo');
+        const alarmStatus = document.getElementById('alarmStatus');
+        const createAlarmBtn = document.getElementById('createAlarmBtn');
+        const createTimeAlarmBtn = document.getElementById('createTimeAlarmBtn');
+        const clearAlarmsBtn = document.getElementById('clearAlarmsBtn');
+        const testAlarmBtn = document.getElementById('testAlarmBtn');
+        const locateUserBtn = document.getElementById('locateUser');
+        const trackUserBtn = document.getElementById('trackUser');
+        const uploadSoundBtn = document.getElementById('uploadSoundBtn');
+        const audioUpload = document.getElementById('audioUpload');
+        const enableNotificationsBtn = document.getElementById('enableNotificationsBtn');
+        const notificationPermissionDiv = document.getElementById('notificationPermission');
+        const notificationStatus = document.getElementById('notificationStatus');
+        const notificationStatusText = document.getElementById('notificationStatusText');
+        const alarmRadius = document.getElementById('alarmRadius');
+        const radiusValue = document.getElementById('radiusValue');
+        const alarmsList = document.getElementById('alarmsList');
+        const customSoundsList = document.getElementById('customSoundsList');
+        const activeAlarmsCount = document.getElementById('activeAlarmsCount');
+        const currentTime = document.getElementById('currentTime');
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        // Проверка и запрос разрешения на уведомления
+        function checkNotificationPermission() {
+            if (!("Notification" in window)) {
+                console.log("Браузер не поддерживает уведомления");
+                notificationStatusText.textContent = 'Не поддерживается';
+                notificationStatus.style.background = 'rgba(255, 107, 107, 0.2)';
+                notificationStatus.style.borderColor = 'var(--accent)';
+                return;
+            }
+            
+            if (Notification.permission === "granted") {
+                notificationPermission = true;
+                notificationPermissionDiv.style.display = 'none';
+                notificationStatusText.textContent = 'Активны';
+                notificationStatus.classList.add('active');
+                console.log("Уведомления разрешены");
+            } else if (Notification.permission === "denied") {
+                notificationPermission = false;
+                notificationPermissionDiv.style.display = 'block';
+                notificationStatusText.textContent = 'Заблокированы';
+                notificationStatus.style.background = 'rgba(255, 107, 107, 0.2)';
+                notificationStatus.style.borderColor = 'var(--accent)';
+                console.log("Уведомления заблокированы");
+            } else {
+                notificationPermission = false;
+                notificationPermissionDiv.style.display = 'block';
+                notificationStatusText.textContent = 'Требуется разрешение';
+                console.log("Разрешение на уведомления не запрошено");
+            }
+        }
+        
+        // Запрос разрешения на уведомления
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) {
+                alert("Ваш браузер не поддерживает уведомления");
+                return;
+            }
+            
+            Notification.requestPermission().then(function(permission) {
+                if (permission === "granted") {
+                    notificationPermission = true;
+                    notificationPermissionDiv.style.display = 'none';
+                    notificationStatusText.textContent = 'Активны';
+                    notificationStatus.classList.add('active');
+                    console.log("Разрешение на уведомления получено");
+                    
+                    // Тестовое уведомление
+                    showNotification("Уведомления включены", "Теперь вы будете получать уведомления от будильника");
+                } else {
+                    notificationPermission = false;
+                    notificationPermissionDiv.style.display = 'block';
+                    notificationStatusText.textContent = 'Заблокированы';
+                    notificationStatus.style.background = 'rgba(255, 107, 107, 0.2)';
+                    notificationStatus.style.borderColor = 'var(--accent)';
+                    console.log("Разрешение на уведомления отклонено");
+                }
+            });
+        }
+        
+        // Показ уведомления
+        function showNotification(title, message) {
+            if (!notificationPermission) {
+                console.log("Уведомления не разрешены");
+                return;
+            }
+            
+            try {
+                const options = {
+                    body: message,
+                    icon: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTMyIDhDNDEuOTUxIDggNTAgMTYuMDQ5IDUwIDI2VjQwTDU0IDQ0SDMySDZMMTAgNDBWMjZDMTAgMTYuMDQ5IDE4LjA0OSA4IDMyIDhaTTI0IDUwSDQwQzQwIDUzLjMxMzcgMzcuMzEzNyA1NiAzNCA1NkgyNkMyOS4zMTM3IDU2IDMyIDUzLjMxMzcgMzIgNTBaIiBmaWxsPSIjNEhGQjZCIi8+Cjwvc3ZnPg==',
+                    tag: 'alarm-notification',
+                    requireInteraction: true
+                };
+                
+                const notification = new Notification(title, options);
+                
+                notification.onclick = function() {
+                    window.focus();
+                    this.close();
+                };
+                
+                // Автоматическое закрытие уведомления через 10 секунд
+                setTimeout(() => {
+                    notification.close();
+                }, 10000);
+                
+                return notification;
+            } catch (error) {
+                console.error("Ошибка показа уведомления:", error);
+                // Альтернативный способ показа уведомления
+                alert(`${title}: ${message}`);
+            }
+        }
+        
+        // Обработчик для кнопки включения уведомлений
+        enableNotificationsBtn.addEventListener('click', requestNotificationPermission);
+        
+        // Загрузка пользовательских звуков из localStorage
+        function loadCustomSounds() {
+            const savedSounds = localStorage.getItem('customSounds');
+            if (savedSounds) {
+                customSounds = JSON.parse(savedSounds);
+                updateCustomSoundsList();
+            }
+        }
+        
+        // Сохранение пользовательских звуков в localStorage
+        function saveCustomSounds() {
+            localStorage.setItem('customSounds', JSON.stringify(customSounds));
+        }
+        
+        // Обновление списка пользовательских звуков
+        function updateCustomSoundsList() {
+            customSoundsList.innerHTML = '';
+            
+            if (customSounds.length === 0) {
+                customSoundsList.innerHTML = '<div class="custom-sound-item"><span class="sound-name">Пока нет загруженных звуков</span></div>';
+                return;
+            }
+            
+            customSounds.forEach((sound, index) => {
+                const soundElement = document.createElement('div');
+                soundElement.className = 'custom-sound-item';
+                soundElement.innerHTML = `
+                    <span class="sound-name">${sound.name}</span>
+                    <div class="sound-controls">
+                        <button class="sound-btn play-sound" data-index="${index}" title="Воспроизвести">▶️</button>
+                        <button class="sound-btn delete-sound" data-index="${index}" title="Удалить">🗑️</button>
+                    </div>
+                `;
+                customSoundsList.appendChild(soundElement);
+            });
+            
+            // Добавляем обработчики для кнопок воспроизведения и удаления
+            document.querySelectorAll('.play-sound').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    playCustomSound(index);
+                });
+            });
+            
+            document.querySelectorAll('.delete-sound').forEach(button => {
+                button.addEventListener('click', function() {
+                    const index = parseInt(this.getAttribute('data-index'));
+                    deleteCustomSound(index);
+                });
+            });
+        }
+        
+        // Воспроизведение пользовательского звука
+        function playCustomSound(index) {
+            if (index >= 0 && index < customSounds.length) {
+                const sound = customSounds[index];
+                const audio = new Audio(sound.data);
+                audio.play().catch(e => {
+                    console.log("Ошибка воспроизведения звука:", e);
+                    alert("Не удалось воспроизвести звук. Проверьте формат файла.");
+                });
+            }
+        }
+        
+        // Удаление пользовательского звука
+        function deleteCustomSound(index) {
+            if (index >= 0 && index < customSounds.length) {
+                if (confirm(`Удалить звук "${customSounds[index].name}"?`)) {
+                    customSounds.splice(index, 1);
+                    saveCustomSounds();
+                    updateCustomSoundsList();
+                }
+            }
+        }
+        
+        // Обработчик выбора файла
+        audioUpload.addEventListener('change', function(e) {
+            if (e.target.files.length > 0) {
+                selectedFile = e.target.files[0];
+                // Показываем имя выбранного файла
+                document.querySelector('.file-upload-label').textContent = `📁 ${selectedFile.name}`;
+            }
+        });
+        
+        // Обработчик загрузки звука
+        uploadSoundBtn.addEventListener('click', function() {
+            if (!selectedFile) {
+                alert("Пожалуйста, выберите звуковой файл");
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const soundData = e.target.result;
+                
+                // Проверяем размер файла (ограничение 5MB)
+                if (selectedFile.size > 5 * 1024 * 1024) {
+                    alert("Файл слишком большой. Максимальный размер - 5MB.");
+                    return;
+                }
+                
+                // Добавляем звук в список
+                customSounds.push({
+                    name: selectedFile.name,
+                    data: soundData
+                });
+                
+                // Сохраняем и обновляем список
+                saveCustomSounds();
+                updateCustomSoundsList();
+                
+                // Сбрасываем выбор файла
+                selectedFile = null;
+                audioUpload.value = '';
+                document.querySelector('.file-upload-label').textContent = '📁 Выбрать звуковой файл';
+                
+                alert("Звук успешно загружен!");
+            };
+            
+            reader.readAsDataURL(selectedFile);
+        });
+        
+        // Обновление значения радиуса
+        alarmRadius.addEventListener('input', function() {
+            radiusValue.textContent = `${this.value} м`;
+        });
+        
+        // Переключение вкладок
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabId = tab.getAttribute('data-tab');
+                
+                // Убираем активный класс у всех вкладок и контента
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                // Добавляем активный класс к выбранной вкладке и контенту
+                tab.classList.add('active');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Создание геолокационного сигнала при клике на карте
+        map.on('click', function(e) {
+            const alarmName = document.getElementById('alarmName').value || `Сигнал ${alarms.length + 1}`;
+            const alarmMessage = document.getElementById('alarmMessage').value || "Вы достигли цели!";
+            const radius = parseInt(alarmRadius.value);
+            const soundType = document.getElementById('alarmSound').value;
+            const showNotification = document.getElementById('locationNotification').checked;
+            
+            createLocationAlarm(e.latlng, alarmName, alarmMessage, radius, soundType, showNotification);
+        });
+        
+        // Функция создания геолокационного сигнала
+        function createLocationAlarm(latlng, name, message, radius, soundType, showNotification) {
+            const alarmId = 'alarm_' + Date.now();
+            
+            // Создаем визуальное представление сигнала
+            const alarmCircle = L.circle(latlng, {
+                color: '#4A6FA5',
+                fillColor: '#4A6FA5',
+                fillOpacity: 0.2,
+                radius: radius
+            }).addTo(map);
+            
+            const alarmMarker = L.marker(latlng).addTo(map).bindPopup(`
+                <div style="text-align: center; padding: 10px;">
+                    <h3 style="margin: 0 0 10px 0; color: #4A6FA5;">${name}</h3>
+                    <p style="margin: 0;">${message}</p>
+                    <p style="margin: 10px 0 0 0; font-size: 0.9em; color: #777;">Радиус: ${radius} м</p>
+                </div>
+            `);
+            
+            // Сохраняем сигнал
+            const alarm = {
+                id: alarmId,
+                type: 'location',
+                name: name,
+                message: message,
+                latlng: latlng,
+                radius: radius,
+                soundType: soundType,
+                circle: alarmCircle,
+                marker: alarmMarker,
+                active: true,
+                showNotification: showNotification
+            };
+            
+            alarms.push(alarm);
+            updateAlarmsList();
+            
+            // Обновляем статус
+            alarmStatus.textContent = `Геосигнал "${name}" создан!`;
+            setTimeout(() => {
+                alarmStatus.textContent = "Система активна";
+            }, 3000);
+        }
+        
+        // Функция создания временного будильника
+        function createTimeAlarm() {
+            const alarmName = document.getElementById('timeAlarmName').value || `Будильник ${alarms.length + 1}`;
+            const alarmMessage = document.getElementById('timeAlarmMessage').value || "Время пришло!";
+            const alarmTime = document.getElementById('alarmTime').value;
+            const repeatDays = document.getElementById('repeatDays').value;
+            const soundType = document.getElementById('timeAlarmSound').value;
+            const showNotification = document.getElementById('timeNotification').checked;
+            
+            if (!alarmTime) {
+                alert("Пожалуйста, установите время для будильника");
+                return;
+            }
+            
+            const alarmId = 'alarm_' + Date.now();
+            
+            // Сохраняем будильник
+            const alarm = {
+                id: alarmId,
+                type: 'time',
+                name: alarmName,
+                message: alarmMessage,
+                time: alarmTime,
+                repeat: repeatDays,
+                soundType: soundType,
+                active: true,
+                showNotification: showNotification
+            };
+            
+            alarms.push(alarm);
+            updateAlarmsList();
+            
+            // Обновляем статус
+            alarmStatus.textContent = `Будильник "${alarmName}" на ${alarmTime} создан!`;
+            setTimeout(() => {
+                alarmStatus.textContent = "Система активна";
+            }, 3000);
+        }
+        
+        // Обработчик для кнопки создания временного будильника
+        createTimeAlarmBtn.addEventListener('click', createTimeAlarm);
+        
+        // Обновление списка сигналов
+        function updateAlarmsList() {
+            alarmsList.innerHTML = '';
+            activeAlarmsCount.textContent = alarms.length;
+            
+            if (alarms.length === 0) {
+                alarmsList.innerHTML = '<div class="alarm-item"><span class="alarm-name">Пока нет сигналов</span></div>';
+                return;
+            }
+            
+            alarms.forEach(alarm => {
+                const alarmElement = document.createElement('div');
+                alarmElement.className = 'alarm-item';
+                if (alarm === closestAlarm) {
+                    alarmElement.classList.add('active-alarm');
+                }
+                
+                let details = '';
+                if (alarm.type === 'location') {
+                    details = `${alarm.radius} м`;
+                } else if (alarm.type === 'time') {
+                    details = `${alarm.time} (${getRepeatText(alarm.repeat)})`;
+                }
+                
+                alarmElement.innerHTML = `
+                    <div>
+                        <div class="alarm-name">${alarm.name}</div>
+                        <div class="alarm-details">${details}</div>
+                    </div>
+                    <button class="delete-alarm" data-id="${alarm.id}">×</button>
+                `;
+                
+                alarmsList.appendChild(alarmElement);
+            });
+            
+            // Добавляем обработчики для кнопок удаления
+            document.querySelectorAll('.delete-alarm').forEach(button => {
+                button.addEventListener('click', function() {
+                    const alarmId = this.getAttribute('data-id');
+                    deleteAlarm(alarmId);
+                });
+            });
+        }
+        
+        // Получение текста для повторения
+        function getRepeatText(repeat) {
+            switch(repeat) {
+                case 'once': return 'один раз';
+                case 'daily': return 'ежедневно';
+                case 'weekdays': return 'по будням';
+                case 'weekends': return 'по выходным';
+                default: return repeat;
+            }
+        }
+        
+        // Удаление сигнала
+        function deleteAlarm(alarmId) {
+            const alarmIndex = alarms.findIndex(a => a.id === alarmId);
+            if (alarmIndex !== -1) {
+                // Если это геолокационный сигнал, удаляем с карты
+                if (alarms[alarmIndex].type === 'location') {
+                    map.removeLayer(alarms[alarmIndex].circle);
+                    map.removeLayer(alarms[alarmIndex].marker);
+                }
+                
+                // Удаляем из массива
+                alarms.splice(alarmIndex, 1);
+                
+                // Обновляем список
+                updateAlarmsList();
+                
+                // Обновляем статус
+                alarmStatus.textContent = "Сигнал удален";
+                setTimeout(() => {
+                    alarmStatus.textContent = "Система активна";
+                }, 3000);
+            }
+        }
+        
+        // Очистка всех сигналов
+        clearAlarmsBtn.addEventListener('click', function() {
+            if (alarms.length === 0) return;
+            
+            if (confirm("Вы уверены, что хотите удалить все сигналы?")) {
+                alarms.forEach(alarm => {
+                    if (alarm.type === 'location') {
+                        map.removeLayer(alarm.circle);
+                        map.removeLayer(alarm.marker);
+                    }
+                });
+                
+                alarms = [];
+                updateAlarmsList();
+                closestAlarm = null;
+                distanceInfo.textContent = "-";
+                distanceInfo.classList.remove('active');
+                
+                alarmStatus.textContent = "Все сигналы удалены";
+                setTimeout(() => {
+                    alarmStatus.textContent = "Система активна";
+                }, 3000);
+            }
+        });
+        
+        // Тестовый сигнал
+        testAlarmBtn.addEventListener('click', function() {
+            triggerAlarm({
+                name: "Тестовый сигнал",
+                message: "Это тестовое уведомление!",
+                soundType: "standard",
+                showNotification: true
+            });
+        });
+        
+        // Кнопка "Найти меня"
+        locateUserBtn.addEventListener('click', function() {
+            if (userMarker) {
+                map.setView(userMarker.getLatLng(), 16);
+            } else {
+                getUserLocation();
+            }
+        });
+        
+        // Кнопка "Следить за мной"
+        trackUserBtn.addEventListener('click', function() {
+            isTracking = !isTracking;
+            if (isTracking) {
+                trackUserBtn.style.background = 'var(--accent)';
+                trackUserBtn.title = 'Отключить слежение';
+                if (userMarker) {
+                    map.setView(userMarker.getLatLng(), 16);
+                }
+            } else {
+                trackUserBtn.style.background = 'var(--primary)';
+                trackUserBtn.title = 'Следить за мной';
+            }
+        });
+        
+        // Получение текущего местоположения пользователя
+        function getUserLocation() {
+            if (navigator.geolocation) {
+                // Получаем текущее положение один раз
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        updateUserPosition(position);
+                    },
+                    function(error) {
+                        locationStatus.textContent = 'Ошибка получения местоположения: ' + error.message;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+                
+                // Начинаем отслеживание местоположения
+                if (watchId) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                
+                watchId = navigator.geolocation.watchPosition(
+                    function(position) {
+                        updateUserPosition(position);
+                        checkLocationAlarms();
+                    },
+                    function(error) {
+                        locationStatus.textContent = 'Ошибка отслеживания: ' + error.message;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 1000
+                    }
+                );
+            } else {
+                locationStatus.textContent = 'Геолокация не поддерживается вашим браузером';
+            }
+        }
+        
+        // Обновление позиции пользователя на карте
+        function updateUserPosition(position) {
+            const userLatLng = [position.coords.latitude, position.coords.longitude];
+            const accuracy = position.coords.accuracy;
+            
+            // Если это первый раз, центрируем карту
+            if (!userMarker) {
+                map.setView(userLatLng, 16);
+                
+                // Создаем маркер пользователя с кастомной иконкой
+                userMarker = L.marker(userLatLng, {
+                    icon: L.divIcon({
+                        className: 'user-location-marker',
+                        html: '<div class="user-location-marker"></div>',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    })
+                }).addTo(map).bindPopup('Ваше текущее местоположение');
+                
+                // Создаем круг точности
+                userAccuracyCircle = L.circle(userLatLng, {
+                    color: '#FF6B6B',
+                    fillColor: '#FF6B6B',
+                    fillOpacity: 0.2,
+                    radius: accuracy
+                }).addTo(map);
+            } else {
+                userMarker.setLatLng(userLatLng);
+                userAccuracyCircle.setLatLng(userLatLng);
+                userAccuracyCircle.setRadius(accuracy);
+            }
+            
+            // Если включено слежение, центрируем карту на пользователе
+            if (isTracking) {
+                map.setView(userLatLng, map.getZoom());
+            }
+            
+            // Обновляем статус
+            locationStatus.textContent = `Широта: ${userLatLng[0].toFixed(6)}, Долгота: ${userLatLng[1].toFixed(6)}`;
+            locationStatus.innerHTML += `<br>Точность: ${Math.round(accuracy)} м`;
+        }
+        
+        // Проверка расстояния до геолокационных сигналов
+        function checkLocationAlarms() {
+            if (!userMarker || alarms.length === 0) return;
+            
+            const userLatLng = userMarker.getLatLng();
+            let minDistance = Infinity;
+            let closest = null;
+            
+            // Находим ближайший сигнал
+            alarms.forEach(alarm => {
+                if (alarm.type !== 'location') return;
+                
+                const distance = userLatLng.distanceTo(alarm.latlng);
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closest = alarm;
+                }
+                
+                // Если пользователь в радиусе сигнала
+                if (distance <= alarm.radius) {
+                    // Активируем сигнал, если он еще не активирован
+                    if (alarm.active) {
+                        triggerAlarm(alarm);
+                    }
+                }
+            });
+            
+            // Обновляем информацию о ближайшем сигнале
+            closestAlarm = closest;
+            if (closest) {
+                distanceInfo.textContent = `${Math.round(minDistance)} м до "${closest.name}"`;
+                distanceInfo.classList.add('active');
+            } else {
+                distanceInfo.textContent = "-";
+                distanceInfo.classList.remove('active');
+            }
+            
+            updateAlarmsList();
+        }
+        
+        // Проверка временных будильников
+        function checkTimeAlarms() {
+            const now = new Date();
+            const currentTimeString = now.toTimeString().substring(0, 5);
+            
+            alarms.forEach(alarm => {
+                if (alarm.type !== 'time') return;
+                
+                if (alarm.time === currentTimeString && alarm.active) {
+                    // Проверяем, нужно ли срабатывать по расписанию
+                    if (shouldTriggerTimeAlarm(alarm, now)) {
+                        triggerAlarm(alarm);
+                        
+                        // Если будильник на один раз, деактивируем его
+                        if (alarm.repeat === 'once') {
+                            alarm.active = false;
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Проверка, должен ли сработать временной будильник
+        function shouldTriggerTimeAlarm(alarm, now) {
+            const dayOfWeek = now.getDay(); // 0 - воскресенье, 1 - понедельник, и т.д.
+            
+            switch(alarm.repeat) {
+                case 'once':
+                    return true;
+                case 'daily':
+                    return true;
+                case 'weekdays':
+                    return dayOfWeek >= 1 && dayOfWeek <= 5;
+                case 'weekends':
+                    return dayOfWeek === 0 || dayOfWeek === 6;
+                default:
+                    return true;
+            }
+        }
+        
+        // Активация сигнала
+        function triggerAlarm(alarm) {
+            // Визуальное оповещение
+            alarmStatus.textContent = `СИГНАЛ: ${alarm.message}`;
+            alarmStatus.classList.add('alarm-active');
+            
+            // Звуковое оповещение
+            playAlarmSound(alarm.soundType);
+            
+            // Вибрация (если поддерживается)
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+            
+            // Уведомление (если включено)
+            if (alarm.showNotification) {
+                showNotification(alarm.name, alarm.message);
+            }
+            
+            // Деактивируем геолокационный сигнал на некоторое время
+            if (alarm.type === 'location') {
+                alarm.active = false;
+                setTimeout(() => {
+                    alarm.active = true;
+                    alarmStatus.classList.remove('alarm-active');
+                    alarmStatus.textContent = "Система активна";
+                }, 10000);
+            } else {
+                // Для временных будильников убираем оповещение через 10 секунд
+                setTimeout(() => {
+                    alarmStatus.classList.remove('alarm-active');
+                    alarmStatus.textContent = "Система активна";
+                }, 10000);
+            }
+        }
+        
+        // Воспроизведение звука сигнала
+        function playAlarmSound(soundType) {
+            if (soundType === 'custom' && customSounds.length > 0) {
+                // Воспроизводим случайный пользовательский звук
+                const randomIndex = Math.floor(Math.random() * customSounds.length);
+                const sound = customSounds[randomIndex];
+                const audio = new Audio(sound.data);
+                audio.play().catch(e => console.log("Ошибка воспроизведения звука:", e));
+            } else {
+                // В реальном приложении здесь были бы разные звуковые файлы
+                try {
+                    const audio = new Audio();
+                    // Используем базовую реализацию без внешних файлов
+                    console.log(`Воспроизведение звука: ${soundType}`);
+                } catch(e) {
+                    console.log("Ошибка воспроизведения звука:", e);
+                }
+            }
+        }
+        
+        // Обновление текущего времени
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toTimeString().substring(0, 8);
+            currentTime.textContent = timeString;
+        }
+        
+        // Обработчик для кнопки создания геолокационного сигнала
+        createAlarmBtn.addEventListener('click', function() {
+            alert("Кликните на карте, чтобы установить геолокационный сигнал");
+        });
+        
+        // Инициализация при загрузке страницы
+        window.addEventListener('load', function() {
+            getUserLocation();
+            loadCustomSounds();
+            checkNotificationPermission();
+            
+            // Запускаем обновление времени
+            updateCurrentTime();
+            currentTimeInterval = setInterval(updateCurrentTime, 1000);
+            
+            // Запускаем проверку временных будильников
+            setInterval(checkTimeAlarms, 1000);
+            
+            // Создаем демо-сигнал
+            setTimeout(() => {
+                if (alarms.length === 0) {
+                    const demoLatLng = map.getCenter();
+                    demoLatLng.lat += 0.005;
+                    demoLatLng.lng += 0.005;
+                    
+                    createLocationAlarm(
+                        demoLatLng, 
+                        "Пример геосигнала", 
+                        "Вы достигли демонстрационного сигнала!", 
+                        300, 
+                        "standard",
+                        true
+                    );
+                }
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
